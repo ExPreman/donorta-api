@@ -11,3 +11,8 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 /.idea
+*.log
+/lastupdate.tmp
+donorta-api
+cpu-6288.pprof
+mem-6288.memprof
