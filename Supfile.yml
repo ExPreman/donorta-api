@@ -1,0 +1,50 @@
+version: 0.4
+
+# Environment variables for all commands
+env:
+  NAME: oropay
+  REPO: git@github.com:ExPreman/donorta-api.git
+  BRANCH: master
+
+networks:
+  dev:
+    env:
+      SUPERVISOR: /usr/bin/supervisorctl
+    hosts:
+      - root@ex-preman
+
+  prod:
+    env:
+      SUPERVISOR: /usr/bin/supervisorctl
+    hosts:
+      - tbd
+
+commands:
+  # Named set of commands to be run remotely
+  pre-build:
+    desc: Change directory
+    run: cd ~/go/src/donorta-api; git pull
+
+  build:
+    desc: Building binary
+    run: cd ~/go/src/donorta-api; /usr/local/go-1.10/bin/go build -v; /usr/local/go-1.10/bin/go run main.go
+    once: true
+
+  restart:
+    desc: Restart Supervisord
+    run: sudo $SUPERVISOR restart donorta-api
+
+  bash:
+    desc: Interactive shell on all hosts
+    stdin: true
+    run: bash
+
+  echo:
+    desc: Print some env vars
+    run: echo $NAME $REPO $SUP_NETWORK
+
+targets: # Aliases to run multiple commands at once
+  deploy:
+    - pre-build
+    - build
+    - restart
