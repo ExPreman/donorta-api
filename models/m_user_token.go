@@ -2,16 +2,14 @@ package models
 
 import (
 	"time"
+	"encoding/json"
 
+	"donorta-api/lib/redis"
 	"donorta-api/lib/helper"
 	"donorta-api/lib/security"
 
 	"github.com/astaxie/beego/orm"
 )
-
-func init() {
-	orm.RegisterModel(new(UserToken))
-}
 
 type UserToken struct {
 	Id       		uint64			`json:"id"`
@@ -21,6 +19,10 @@ type UserToken struct {
 	IsActive		uint8			`orm:"default(1)" json:"is_active"`
 	CreatedAt		time.Time 		`orm:"auto_now_add;type(datetime)" json:"created_at"`
 	CreatedBy		string	  		`json:"created_by"`
+}
+
+func init() {
+	orm.RegisterModel(new(UserToken))
 }
 
 func TokenGenerate (user User) (token UserToken, code int, err error) {
@@ -42,10 +44,26 @@ func TokenGenerate (user User) (token UserToken, code int, err error) {
 func GetUserToken(token string) UserToken {
 	var data UserToken
 	o := orm.NewOrm()
-	o.QueryTable("oauth_token").
-		Filter("token", token).
-		Filter("is_active", 1).
-		One(&data)
+	key 	  := redis.UserToken +"_"+ token
+	expiry 	  := time.Hour * 24 * 7
+	cData,err := redis.GetBytes("GET", key)
+
+	if err != nil {
+		o.QueryTable("user_token").
+			Filter("token", token).
+			Filter("is_active", 1).
+			One(&data)
+
+		// Check token expires
+		if helper.GetNowTime().After(data.Expires) {
+			o.Delete(&data)
+			return data
+		}
+		plJson, _ := json.Marshal(data)
+		redis.SetEx(key, string(plJson), expiry)
+	} else {
+		json.Unmarshal(cData, &data)
+	}
 
 	return data
 }

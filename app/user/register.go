@@ -6,9 +6,10 @@ import (
 	"strconv"
 
 	"donorta-api/models"
-	"donorta-api/lib/security"
 	"donorta-api/lib/helper"
+	"donorta-api/lib/security"
 	"donorta-api/lib/checkmail"
+	"donorta-api/lib/constanta"
 
 	"github.com/astaxie/beego/validation"
 	"github.com/astaxie/beego/orm"
@@ -19,6 +20,9 @@ func Register(user models.User) (models.User, int, error) {
 	valid := validation.Validation{}
 	valid.Required(user.Password, "password")
 	valid.Required(user.Fullname, "fullname")
+	valid.Required(user.Birthdate, "birthdate")
+	valid.Required(user.BloodType, "blood_type")
+	valid.Required(user.Gender, "gender")
 	valid.Required(user.Handphone, "handphone")
 	valid.Required(user.Email, "email")
 	valid.Email(user.Email, "email")
@@ -75,12 +79,22 @@ func Register(user models.User) (models.User, int, error) {
 		}
 	}
 
+
+	if !helper.InArray(user.BloodType, constanta.BloodList) {
+		return user, 400, errors.New("Golongan darah tidak valid.")
+	}
+	if user.Gender != constanta.USER_FEMALE && user.Gender != constanta.USER_MALE {
+		return user, 400, errors.New("Jenis Kelamin tidak valid.")
+	}
+
 	user.SecuritySalt 	= security.ShaOneEncrypt(helper.GetNowTime().String() + helper.StringRandomWithCharset(30, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
 	user.SecurityAnswer = security.ShaOneEncrypt(strings.ToLower(user.SecurityAnswer) + user.SecuritySalt)
 	user.Salt 			= security.ShaOneEncrypt(helper.GetNowTime().String() + helper.StringRandomWithCharset(32, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
 	user.Password 		= security.ShaOneEncrypt(user.Password + user.Salt)
 	user.CreatedBy 		= helper.StringRandomWithCharset(32, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	user.LastLogin		= helper.GetNowTime()
 	user.IsActive 		= 1
+	user.LoginNumber++
 	//TODO: Need to activate using SMS OTP
 	//user.ChallengeCode	= helper.StringRandomWithCharset(8, helper.STRING_NUMBER)
 	//user.ResponseCode	= helper.StringRandomWithCharset(6, helper.STRING_NUMBER)
@@ -90,5 +104,5 @@ func Register(user models.User) (models.User, int, error) {
 		return user, 500, errors.New(err.Error())
 	}
 
-	return user, 0, nil
+	return models.CleanUserData(user), 0, nil
 }

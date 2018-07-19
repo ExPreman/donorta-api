@@ -36,9 +36,15 @@ func init() {
 		beego.Error(err)
 	}
 
-	if beego.BConfig.RunMode == "dev" {
-		orm.Debug = true
-	}
+	//if beego.BConfig.RunMode == "dev" {
+	//	orm.Debug = true
+	//}
+
+	// Generate Table From Models
+	//err = orm.RunSyncdb("default", true, true)
+	//if err != nil {
+	//	beego.Error(err)
+	//}
 
 	beego.BConfig.WebConfig.AutoRender = false
 	toolbox.StartTask()
@@ -58,4 +64,3 @@ func main() {
 
 	beego.Run()
 }
-

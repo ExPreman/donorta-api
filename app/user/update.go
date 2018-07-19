@@ -5,13 +5,16 @@ import (
 	"strconv"
 
 	"donorta-api/models"
-	"donorta-api/lib/security"
+	"donorta-api/lib/redis"
 	"donorta-api/lib/helper"
+	"donorta-api/lib/security"
 	"donorta-api/lib/checkmail"
 
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/orm"
 	"github.com/astaxie/beego/validation"
+	"strings"
+	"donorta-api/lib/constanta"
 )
 
 func Update(current models.User, user models.User) (models.User, int, error) {
@@ -25,6 +28,7 @@ func Update(current models.User, user models.User) (models.User, int, error) {
 	}
 
 	if user.Handphone != "" && user.Handphone != current.Handphone {
+		user.Handphone = helper.CleanHPNo(user.Handphone)
 		if _, err := strconv.Atoi(user.Handphone); err != nil {
 			return user, 400, errors.New("Handphone harus berupa angka")
 		}
@@ -47,6 +51,7 @@ func Update(current models.User, user models.User) (models.User, int, error) {
 		valid := validation.Validation{}
 		valid.Required(user.Email, "email")
 		valid.Email(user.Email, "email")
+		user.Email = strings.ToLower(user.Email)
 
 		if valid.HasErrors() {
 			for _, err := range valid.Errors {
@@ -73,22 +78,34 @@ func Update(current models.User, user models.User) (models.User, int, error) {
 	if user.Fullname != "" && user.Fullname != current.Fullname {
 		current.Fullname = user.Fullname
 	}
-	if user.Address != "" && user.Address != current.Address {
-		current.Address	= user.Address
-	}
-	if user.City != "" && user.City != current.City {
-		current.City	= user.City
-	}
-	if user.Province != "" && user.Province != current.Province {
-		// Prevent city in another province
-		if user.City == "" {
-			current.City = ""
+	if user.BloodType != "" {
+		if !helper.InArray(user.BloodType, constanta.BloodList) {
+			return user, 400, errors.New("Golongan darah tidak valid.")
 		}
-		current.Province = user.Province
+		current.BloodType = user.BloodType
 	}
-	if user.Zipcode != "" && user.Zipcode != current.Zipcode {
-		current.Zipcode = user.Zipcode
+	if user.Gender != "" {
+		if user.Gender != constanta.USER_FEMALE && user.Gender != constanta.USER_MALE {
+			return user, 400, errors.New("Jenis Kelamin tidak valid.")
+		}
+		current.Gender = user.Gender
 	}
+	//if user.Address != "" && user.Address != current.Address {
+	//	current.Address	= user.Address
+	//}
+	//if user.City != "" && user.City != current.City {
+	//	current.City	= user.City
+	//}
+	//if user.Province != "" && user.Province != current.Province {
+	//	// Prevent city in another province
+	//	if user.City == "" {
+	//		current.City = ""
+	//	}
+	//	current.Province = user.Province
+	//}
+	//if user.Zipcode != "" && user.Zipcode != current.Zipcode {
+	//	current.Zipcode = user.Zipcode
+	//}
 	if beego.Substr(user.Birthdate.String(), 0, 4) != "0001" && user.Birthdate != current.Birthdate {
 		current.Birthdate = user.Birthdate
 	}
@@ -111,6 +128,9 @@ func Update(current models.User, user models.User) (models.User, int, error) {
 	if err != nil {
 		return user, 500, errors.New(err.Error())
 	}
+
+	// Delete Redis
+	redis.Del(redis.UserProfile +"_"+ strconv.Itoa(int(current.Id)))
 
 	return current, 200, nil
 }

@@ -2,32 +2,35 @@ package models
 
 import (
 	"time"
+	"strconv"
+	"encoding/json"
 
 	"donorta-api/lib/security"
+	"donorta-api/lib/redis"
 
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/orm"
 )
 
-func init() {
-	orm.RegisterModel(new(User))
-}
-
 type User struct {
 	Id       				uint64						`json:"id"`
+	Fullname 				string						`orm:"size(100)" valid:"Required" json:"fullname"`
 	Handphone				string						`orm:"size(100)" valid:"Required" json:"handphone"`
+	Email					string						`valid:"Email" orm:"size(100)" json:"email"`
 	Password 				string						`orm:"size(100)" valid:"Required" json:"password,omitempty"`
 	Salt  	 				string						`orm:"size(100)" valid:"Required" json:"salt,omitempty"`
 	//TODO: Reward Point
 	//Point					uint						`json:"point"`
-	Fullname 				string						`orm:"size(100)" valid:"Required" json:"fullname"`
 	Birthdate 				time.Time					`orm:"type(date)" json:"birthdate"`
-	Address  				string						`orm:"size(255)" json:"address"`
-	City	 				string						`orm:"size(100)" json:"city"`
-	Province				string						`orm:"size(100)" json:"province"`
-	Zipcode					string						`orm:"size(10)" json:"zipcode"`
-	Email					string						`valid:"Email" orm:"size(100)" json:"email"`
-	Avatar					string						`orm:"size(65535)" json:"avatar"`
+	BloodType				string						`orm:"size(2)" valid:"Required" json:"blood_type"`
+	Gender					string						`orm:"size(10)" valid:"Required" json:"gender"`
+	//TODO: Address
+	//Address  				string						`orm:"size(255)" json:"address"`
+	//City	 				string						`orm:"size(100)" json:"city"`
+	//Province				string						`orm:"size(100)" json:"province"`
+	//Zipcode				string						`orm:"size(10)" json:"zipcode"`
+	//TODO: Profile Picture
+	//Avatar				string						`orm:"size(65535)" json:"avatar"`
 	SecurityQuestion		string						`orm:"size(100)" valid:"Required" json:"security_question"`
 	SecurityAnswer			string						`orm:"size(100)" valid:"Required" json:"security_answer,omitempty"`
 	SecuritySalt			string						`orm:"size(100)" valid:"Required" json:"security_salt,omitempty"`
@@ -47,6 +50,12 @@ type User struct {
 	CreatedBy				string	  					`json:"created_by"`
 	UpdatedAt				time.Time 					`orm:"auto_now;type(datetime)" json:"updated_at"`
 	UpdatedBy				string 						`orm:"null" json:"updated_by"`
+	UserToken				[]*UserToken				`orm:"reverse(many)" json:"user_token,omitempty"`
+	UserActivity			[]*UserActivity				`orm:"reverse(many)" json:"user_activity,omitempty"`
+}
+
+func init() {
+	orm.RegisterModel(new(User))
 }
 
 func UserIsCorrectPassword (user User, pass string) (bool) {
@@ -82,4 +91,27 @@ func CleanUserData(u User) (User) {
 	u.SecuritySalt	 	= ""
 
 	return u
+}
+
+func GetActiveUser (id uint64) User {
+	var data User
+	o := orm.NewOrm()
+	key 	  := redis.UserProfile +"_"+ strconv.Itoa(int(id))
+	expiry 	  := time.Hour * 24 * 7
+	cData,err := redis.GetBytes("GET", key)
+
+	if err != nil {
+		o.QueryTable("user").
+			Filter("id", id).
+			Filter("is_active", 1).
+			Filter("is_locked", 0).
+			One(&data)
+
+		plJson, _ := json.Marshal(data)
+		redis.SetEx(key, string(plJson), expiry)
+	} else {
+		json.Unmarshal(cData, &data)
+	}
+
+	return data
 }

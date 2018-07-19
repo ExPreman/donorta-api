@@ -28,8 +28,9 @@ func (c *UserController) Register() {
 	json.Unmarshal(c.Ctx.Input.RequestBody, &user)
 
 	// Clean Input
-	user.Handphone 	  = helper.CleanHPNo(user.Handphone)
-	user.Email 	   	  = strings.ToLower(user.Email)
+	user.Handphone 	= helper.CleanHPNo(user.Handphone)
+	user.Email 	   	= strings.ToLower(user.Email)
+	user.BloodType	= strings.ToUpper(user.BloodType)
 
 	result, code, err := app.Register(user)
 
@@ -65,8 +66,9 @@ func (c *UserController) Register() {
 //	c.isValidSignature()
 //
 //	// Clean Input
-//	user.Handphone 	  = helper.CleanHPNo(user.Handphone)
-//	user.Email 	   	  = strings.ToLower(user.Email)
+//	user.Handphone 	= helper.CleanHPNo(user.Handphone)
+//	user.Email 	   	= strings.ToLower(user.Email)
+//	user.BloodType	= strings.ToUpper(user.BloodType)
 //
 //	result, code, err := user.Activate(user)
 //

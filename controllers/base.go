@@ -180,7 +180,7 @@ func (c *BaseController) isTokenValid() (models.User, models.UserToken, bool) {
 
 	o := orm.NewOrm()
 	// Get token user
-	// TODO
+	tok = models.GetUserToken(token)
 	if tok.Id == 0 {
 		c.Ctx.Output.SetStatus(401)
 		c.Data["json"] = c.getErrorResponse(401, "Unauthorized Token 2", EmptyStruct{})
@@ -189,13 +189,17 @@ func (c *BaseController) isTokenValid() (models.User, models.UserToken, bool) {
 	}
 
 	// Get user base on token
-	// TODO
+	user = models.GetActiveUser(tok.User.Id)
 	if user.Id == 0 {
 		c.Ctx.Output.SetStatus(401)
 		c.Data["json"] = c.getErrorResponse(401, "Unauthorized Token 3", EmptyStruct{})
 
-		tok.IsActive = 0
-		o.Update(&tok,"IsActive")
+		// For Single User
+		o.Delete(&tok)
+
+		// For Multi User
+		//tok.IsActive = 0
+		//o.Update(&tok,"IsActive")
 
 		c.ServeJSON()
 		c.StopRun()
